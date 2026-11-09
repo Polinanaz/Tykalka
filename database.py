@@ -1,8 +1,18 @@
 import aiosqlite
-from datetime import datetime, date
+from datetime import date, datetime, time, timedelta
 from pathlib import Path
 
 DB_PATH = "diet_bot.db"
+
+def get_current_day() -> date:
+    """
+    Возвращает 'логическую' дату дня.
+    Новый день начинается в 06:00, а не в 00:00.
+    """
+    now = datetime.now()
+    if now.time() < time(6, 0):
+        return (now - timedelta(days=1)).date()
+    return now.date()
 
 async def init_db():
     async with aiosqlite.connect(DB_PATH) as db:
@@ -70,9 +80,10 @@ async def update_log(user_id: int, date: date, **kwargs):
         
         await db.commit()
 
-async def get_today_log(user_id: int, today: date):
+async def get_today_log(user_id: int):
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
+        today = get_current_day()  # <-- ИЗМЕНЕНО
         async with db.execute('''
             SELECT * FROM daily_logs WHERE user_id = ? AND date = ?
         ''', (user_id, today)) as cursor:
@@ -82,24 +93,22 @@ async def get_today_log(user_id: int, today: date):
 async def get_logs_for_period(user_id: int, days: int):
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
-        
-        from datetime import timedelta
-        start_date = date.today() - timedelta(days=days)
+        end_date = get_current_day()  # <-- ИЗМЕНЕНО
+        start_date = end_date - timedelta(days=days)
         
         async with db.execute('''
             SELECT * FROM daily_logs 
-            WHERE user_id = ? AND date >= ?
+            WHERE user_id = ? AND date >= ? AND date <= ?
             ORDER BY date
-        ''', (user_id, start_date)) as cursor:
+        ''', (user_id, start_date, end_date)) as cursor:
             rows = await cursor.fetchall()
             
             logs = []
             for row in rows:
                 log = dict(row)
-                # Парсим JSON для sport_types
                 if log.get('sport_types'):
                     try:
-                        log['sport_types'] = eval(log['sport_types'])  # Безопаснее: json.loads
+                        log['sport_types'] = eval(log['sport_types'])
                     except:
                         log['sport_types'] = []
                 logs.append(log)

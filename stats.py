@@ -1,6 +1,5 @@
 import pandas as pd
-from database import get_logs_for_period
-from datetime import date
+from database import get_logs_for_period, get_current_day
 
 async def get_stats(user_id: int):
     logs = await get_logs_for_period(user_id, 7)

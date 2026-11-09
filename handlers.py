@@ -2,7 +2,7 @@ from aiogram import Router, F
 from aiogram.filters import Command, StateFilter
 from aiogram.types import Message, CallbackQuery, FSInputFile, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
-from datetime import date
+from database import save_log, update_log, get_today_log, get_current_day
 import json
 import os
 import random
@@ -128,7 +128,7 @@ def get_answer_text(field_map, key):
 # === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
 
 async def show_review_screen(message, user_id: int, state: FSMContext):
-    today = date.today()
+    today = get_current_day()
     log = await get_today_log(user_id, today)
     
     if not log:
@@ -178,7 +178,7 @@ async def cmd_weight(message: Message, state: FSMContext):
 
 @router.message(StateFilter(WeightStates.waiting_weight))
 async def process_weight(message: Message, state: FSMContext):
-    today = date.today()
+    today = get_current_day()
     await update_log(message.from_user.id, today, weight=message.text)
     await state.clear()
     await message.answer(f"Записала: {message.text} кг ✅")
@@ -255,7 +255,7 @@ async def edit_weight_start(call: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data.startswith("sleep_"), StateFilter(ReviewStates.editing_sleep))
 async def edit_sleep(call: CallbackQuery, state: FSMContext):
     quality = call.data.split("_")[1]
-    today = date.today()
+    today = get_current_day()
     await update_log(call.from_user.id, today, sleep_quality=quality)
     text, emoji = get_answer_text(SLEEP_MAP, quality)
     await call.message.edit_text(
@@ -271,7 +271,7 @@ async def edit_sleep(call: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data.startswith("sport_"), StateFilter(ReviewStates.editing_sport_plan))
 async def edit_sport_plan(call: CallbackQuery, state: FSMContext):
     planned = call.data.split("_")[1]
-    today = date.today()
+    today = get_current_day()
     await update_log(call.from_user.id, today, sport_planned=planned)
     text, emoji = get_answer_text(SPORT_PLAN_MAP, planned)
     await call.message.edit_text(
@@ -287,7 +287,7 @@ async def edit_sport_plan(call: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data.startswith("sweet_"), StateFilter(ReviewStates.editing_sweet_plan))
 async def edit_sweet_plan(call: CallbackQuery, state: FSMContext):
     planned = call.data.split("_")[1]
-    today = date.today()
+    today = get_current_day()
     await update_log(call.from_user.id, today, sweet_planned=planned)
     text, emoji = get_answer_text(SWEET_PLAN_MAP, planned)
     await call.message.edit_text(
@@ -308,7 +308,7 @@ async def edit_sweet_fact_yes(call: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data == "sweet_no", StateFilter(ReviewStates.editing_sweet_fact))
 async def edit_sweet_fact_no(call: CallbackQuery, state: FSMContext):
-    today = date.today()
+    today = get_current_day()
     await update_log(call.from_user.id, today, sweet_bool=False, sweet_type="none")
     await call.message.edit_text(
         "Ты сегодня ела сладкое?\n<i>Нет</i> 🙅‍♀️",
@@ -322,7 +322,7 @@ async def edit_sweet_fact_no(call: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data.startswith("type_"), StateFilter(ReviewStates.editing_sweet_type))
 async def edit_sweet_type(call: CallbackQuery, state: FSMContext):
     sweet_type = call.data.split("_")[1]
-    today = date.today()
+    today = get_current_day()
     await update_log(call.from_user.id, today, sweet_bool=True, sweet_type=sweet_type)
     text, emoji = get_answer_text(SWEET_TYPE_MAP, sweet_type)
     await call.message.edit_text(
@@ -344,7 +344,7 @@ async def edit_sport_fact_yes(call: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data == "sport_no_eve", StateFilter(ReviewStates.editing_sport_fact))
 async def edit_sport_fact_no(call: CallbackQuery, state: FSMContext):
-    today = date.today()
+    today = get_current_day()
     await update_log(call.from_user.id, today, sport_bool=False, sport_types="[]")
     await call.message.edit_text(
         "Был ли сегодня спорт?\n<i>Нет</i> 😔",
@@ -360,7 +360,7 @@ async def edit_sport_types(call: CallbackQuery, state: FSMContext):
     if call.data == "sport_done":
         data = await state.get_data()
         sport_types = data.get("temp_sport_types", [])
-        today = date.today()
+        today = get_current_day()
         await update_log(call.from_user.id, today, sport_bool=True, sport_types=str(sport_types))
         types_text = ", ".join([SPORT_TYPE_MAP.get(s, s) for s in sport_types]) if sport_types else "ничего"
         
@@ -392,7 +392,7 @@ async def edit_sport_types(call: CallbackQuery, state: FSMContext):
 # Редактирование веса
 @router.message(StateFilter(ReviewStates.editing_weight))
 async def edit_weight(message: Message, state: FSMContext):
-    today = date.today()
+    today = get_current_day()
     await update_log(message.from_user.id, today, weight=message.text)
     await message.answer(f"Вес обновлен: {message.text} кг ✅")
     await show_review_screen(message, message.from_user.id, state)
@@ -499,7 +499,7 @@ async def no_sweet_after_unsure(call: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data == "finish_morning", StateFilter(MorningStates.after_sweet))
 async def finish_morning(call: CallbackQuery, state: FSMContext):
-    today = date.today()
+    today = get_current_day()
     data = await state.get_data()
     await update_log(call.from_user.id, today, 
                      sleep_quality=data.get("sleep_quality"),
@@ -522,7 +522,7 @@ async def finish_morning(call: CallbackQuery, state: FSMContext):
     await call.answer()
 @router.message(StateFilter(MorningStates.binge_details))
 async def process_binge_details(message: Message, state: FSMContext):
-    today = date.today()
+    today = get_current_day()
     data = await state.get_data()
     
     # ИЗМЕНЕНО: save_log -> update_log
@@ -645,7 +645,7 @@ async def process_sport_types(call: CallbackQuery, state: FSMContext):
     await call.answer()
 
 async def finish_day(call: CallbackQuery, state: FSMContext):
-    today = date.today()
+    today = get_current_day()
     data = await state.get_data()
     
     await update_log(call.from_user.id, today,
@@ -682,7 +682,7 @@ async def process_export(call: CallbackQuery):
 @router.callback_query(F.data.startswith("mood_"))
 async def process_mood(call: CallbackQuery, state: FSMContext):
     mood = call.data.split("_")[1]
-    today = date.today()
+    today = get_current_day()
     await update_log(call.from_user.id, today, mood=mood)
     
     responses = {

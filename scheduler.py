@@ -2,7 +2,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from aiogram import Bot
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from datetime import date
-from database import get_today_log
+from database import get_today_log, get_current_day
 
 scheduler = AsyncIOScheduler(timezone="Europe/Moscow")
 
@@ -32,7 +32,7 @@ async def morning_check(bot: Bot, user_id: int):
 
 async def afternoon_check(bot: Bot, user_id: int):
     today = date.today()
-    log = await get_today_log(user_id, today)
+    log = await get_today_log(user_id)
     
     text = "Не забудь пообедать нормальной едой! 🥗\n\nКак настроение?"
     
@@ -51,8 +51,8 @@ async def evening_check(bot: Bot, user_id: int):
 
 async def nag_user(bot: Bot, user_id: int):
     """23:30 — напоминание, если не ответила"""
-    today = date.today()
-    log = await get_today_log(user_id, today)
+    get_current_day()
+    log = await get_today_log(user_id)
     
     # Проверяем, был ли вечерний опрос (есть ли sweet_bool)
     if not log or log.get('sweet_bool') is None:
