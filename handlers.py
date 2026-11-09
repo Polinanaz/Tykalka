@@ -206,7 +206,11 @@ async def start_review_from_finish(call: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data == "review_done")
 async def finish_review(call: CallbackQuery, state: FSMContext):
     await state.clear()
-    await call.message.answer("Отлично! Если нужно что-то изменить — напиши /review ✏️")
+    # Редактируем сообщение с кнопками и убираем их
+    await call.message.edit_text(
+        "Отлично! Если нужно что-то изменить — напиши /review ✏️",
+        reply_markup=None  # УБИРАЕМ КНОПКИ
+    )
     await call.answer()
 
 # === РЕДАКТИРОВАНИЕ ОТВЕТОВ ===
@@ -359,6 +363,14 @@ async def edit_sport_types(call: CallbackQuery, state: FSMContext):
         today = date.today()
         await update_log(call.from_user.id, today, sport_bool=True, sport_types=str(sport_types))
         types_text = ", ".join([SPORT_TYPE_MAP.get(s, s) for s in sport_types]) if sport_types else "ничего"
+        
+        # Редактируем сообщение с кнопками и убираем их
+        await call.message.edit_text(
+            f"Что делала? (можно выбрать несколько)\n<i>{types_text}</i>",
+            parse_mode="HTML",
+            reply_markup=None  # УБИРАЕМ КНОПКИ
+        )
+        
         await call.message.answer(f"Спорт обновлен: {types_text} ✅")
         await show_review_screen(call.message, call.from_user.id, state)
         await call.answer()
@@ -489,14 +501,20 @@ async def no_sweet_after_unsure(call: CallbackQuery, state: FSMContext):
 async def finish_morning(call: CallbackQuery, state: FSMContext):
     today = date.today()
     data = await state.get_data()
-    
-    # ИЗМЕНЕНО: save_log -> update_log
     await update_log(call.from_user.id, today, 
                      sleep_quality=data.get("sleep_quality"),
                      sport_planned=data.get("sport_planned"),
                      sweet_planned=data.get("sweet_planned"))
     
     await state.clear()
+    
+    # Редактируем сообщение с кнопкой "Завершить утро" и убираем её
+    await call.message.edit_text(
+        "Постараешься не есть сладкое?\n<i>Завершить утро ✓</i>",
+        parse_mode="HTML",
+        reply_markup=None  # УБИРАЕМ КНОПКИ
+    )
+    
     await call.message.answer(
         f"Утро записано ✅\n\n{get_day_wish()}\n\nЕсли хочешь что-то изменить — нажми кнопку ниже.",
         reply_markup=finish_with_review_kb()
@@ -598,6 +616,17 @@ async def process_sport_no(call: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data.startswith("sport_"), StateFilter(EveningStates.sport_types))
 async def process_sport_types(call: CallbackQuery, state: FSMContext):
     if call.data == "sport_done":
+        data = await state.get_data()
+        sport_types = data.get("sport_types", [])
+        types_text = ", ".join([SPORT_TYPE_MAP.get(s, s) for s in sport_types]) if sport_types else "ничего"
+        
+        # Редактируем сообщение с кнопками и убираем их
+        await call.message.edit_text(
+            f"Что делала? (можно выбрать несколько)\n<i>{types_text}</i>",
+            parse_mode="HTML",
+            reply_markup=None  # УБИРАЕМ КНОПКИ
+        )
+        
         await finish_day(call, state)
         await call.answer()
         return
@@ -626,8 +655,15 @@ async def finish_day(call: CallbackQuery, state: FSMContext):
                      sport_types=str(data.get("sport_types", [])))
     
     await state.clear()
+    
+    # Редактируем сообщение с кнопками и убираем их
+    await call.message.edit_text(
+        "День записан ✅",
+        reply_markup=None  # УБИРАЕМ КНОПКИ
+    )
+    
     await call.message.answer(
-        f"День записан ✅\n\n{get_night_wish()}\n\nЕсли хочешь что-то изменить — нажми кнопку ниже.",
+        f"{get_night_wish()}\n\nЕсли хочешь что-то изменить — нажми кнопку ниже.",
         reply_markup=finish_with_review_kb()
     )
 
