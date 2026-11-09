@@ -8,7 +8,6 @@ import random
 
 from states import MorningStates, EveningStates, WeightStates, ReviewStates
 from keyboards import *
-from database import save_log, update_log, get_today_log, get_current_day
 from facts import get_random_sport_fact, get_random_sugar_fact
 from export import export_data
 from stats import get_stats
@@ -127,8 +126,7 @@ def get_answer_text(field_map, key):
 # === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
 
 async def show_review_screen(message, user_id: int, state: FSMContext):
-    today = get_current_day()
-    log = await get_today_log(user_id, today)
+    log = await get_today_log(user_id)
     
     if not log:
         await message.answer("Сегодня еще нет записей. Начни с /start")
