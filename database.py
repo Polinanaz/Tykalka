@@ -49,34 +49,37 @@ async def save_log(user_id: int, date: date, **kwargs):
         ''', values)
         await db.commit()
 
-async def update_log(user_id: int, date: date, **kwargs):
+async def update_log(user_id: int, log_date: date, **kwargs):
     async with aiosqlite.connect(DB_PATH) as db:
-        # Проверяем, есть ли запись за сегодня
-        async with db.execute('''
-            SELECT id FROM daily_logs WHERE user_id = ? AND date = ?
-        ''', (user_id, date)) as cursor:
+        db.row_factory = aiosqlite.Row
+        
+        # Ищем существующую запись
+        async with db.execute(
+            'SELECT id FROM daily_logs WHERE user_id = ? AND date = ?',
+            (user_id, str(log_date))
+        ) as cursor:
             row = await cursor.fetchone()
         
         if row:
-            # Обновляем существующую
+            # Обновляем существующую запись
             set_clause = ', '.join([f'{k} = ?' for k in kwargs.keys()])
-            values = list(kwargs.values()) + [user_id, date]
+            values = list(kwargs.values()) + [user_id, str(log_date)]
             
-            await db.execute(f'''
-                UPDATE daily_logs SET {set_clause}
-                WHERE user_id = ? AND date = ?
-            ''', values)
+            await db.execute(
+                f'UPDATE daily_logs SET {set_clause} WHERE user_id = ? AND date = ?',
+                values
+            )
         else:
-            # Создаем новую
+            # Создаём новую запись
             columns = ['user_id', 'date'] + list(kwargs.keys())
-            values = [user_id, date] + list(kwargs.values())
-            
+            values = [user_id, str(log_date)] + list(kwargs.values())
             placeholders = ', '.join(['?' for _ in values])
             column_names = ', '.join(columns)
             
-            await db.execute(f'''
-                INSERT INTO daily_logs ({column_names}) VALUES ({placeholders})
-            ''', values)
+            await db.execute(
+                f'INSERT INTO daily_logs ({column_names}) VALUES ({placeholders})',
+                values
+            )
         
         await db.commit()
 

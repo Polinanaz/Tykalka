@@ -3,13 +3,12 @@ from aiogram.filters import Command, StateFilter
 from aiogram.types import Message, CallbackQuery, FSInputFile, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
 from database import save_log, update_log, get_today_log, get_current_day
-import json
 import os
 import random
 
 from states import MorningStates, EveningStates, WeightStates, ReviewStates
 from keyboards import *
-from database import save_log, update_log, get_today_log
+from database import save_log, update_log, get_today_log, get_current_day
 from facts import get_random_sport_fact, get_random_sugar_fact
 from export import export_data
 from stats import get_stats
@@ -345,14 +344,23 @@ async def edit_sport_fact_yes(call: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data == "sport_no_eve", StateFilter(ReviewStates.editing_sport_fact))
 async def edit_sport_fact_no(call: CallbackQuery, state: FSMContext):
     today = get_current_day()
+    
+    # Сначала обновляем базу
     await update_log(call.from_user.id, today, sport_bool=False, sport_types="[]")
+    
+    # Потом редактируем сообщение с кнопками — убираем их
     await call.message.edit_text(
         "Был ли сегодня спорт?\n<i>Нет</i> 😔",
         parse_mode="HTML",
-        reply_markup=None
+        reply_markup=None  # Явно убираем кнопки
     )
+    
+    # Отправляем подтверждение
     await call.message.answer("Обновлено: без спорта ✅")
+    
+    # Показываем экран review
     await show_review_screen(call.message, call.from_user.id, state)
+    
     await call.answer()
 
 @router.callback_query(F.data.startswith("sport_"), StateFilter(ReviewStates.editing_sport_types))
