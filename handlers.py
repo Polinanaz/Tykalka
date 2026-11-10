@@ -552,7 +552,7 @@ async def process_sweet_planned(call: CallbackQuery, state: FSMContext):
         reply_markup=None
     )
     
-    if planned == "no_plan":  # <-- теперь будет работать
+    if planned == "noplan":  # <-- теперь будет работать
         await call.message.answer("Отлично! Держись 💪")
         await ask_workout_time(call, state)  # <-- СПРАШИВАЕТ ПРО ВРЕМЯ
     elif planned == "unsure":
