@@ -690,11 +690,23 @@ async def save_daily_plan(message: Message, state: FSMContext):
 
 @router.callback_query(F.data == "plan_skip", StateFilter(MorningStates.daily_plan))
 async def skip_daily_plan(call: CallbackQuery, state: FSMContext):
+    today = get_current_day()
+    data = await state.get_data()
+    
+    # СОХРАНЯЕМ ДАННЫЕ ПЕРЕД ЗАВЕРШЕНИЕМ
+    await update_log(call.from_user.id, today,
+                     sleep_quality=data.get("sleep_quality"),
+                     sport_planned=data.get("sport_planned"),
+                     sweet_planned=data.get("sweet_planned"),
+                     workout_time=data.get("workout_time"),
+                     workout_plan=data.get("workout_plan"),
+                     daily_plan=data.get("daily_plan"))
+    
+    await state.clear()
     await call.message.edit_text(
         "Хочешь написать план на сегодня?\n<i>Пропустить</i>",
         parse_mode="HTML", reply_markup=None
     )
-    await state.clear()
     await call.message.answer(
         f"Утро записано ✅\n\n{get_day_wish()}\n\nЕсли хочешь что-то изменить — нажми кнопку ниже.",
         reply_markup=finish_with_review_kb()
@@ -872,12 +884,25 @@ async def evening_daily_plan_none(call: CallbackQuery, state: FSMContext):
     await evening_ask_workout_fact(call, state)
     await call.answer()
 
-@router.message(StateFilter(EveningStates.daily_plan_fact_text))
-async def save_daily_plan_fact_text(message: Message, state: FSMContext):
+@router.message(StateFilter(MorningStates.daily_plan_text))
+async def save_daily_plan(message: Message, state: FSMContext):
     today = get_current_day()
-    await update_log(message.from_user.id, today, daily_plan_fact=f"partial:{message.text}")
-    await message.answer("Записала. А как прошла тренировка?")
-    await evening_ask_workout_fact(message, state)
+    data = await state.get_data()
+    
+    # СОХРАНЯЕМ ВСЕ ДАННЫЕ
+    await update_log(message.from_user.id, today,
+                     sleep_quality=data.get("sleep_quality"),
+                     sport_planned=data.get("sport_planned"),
+                     sweet_planned=data.get("sweet_planned"),
+                     workout_time=data.get("workout_time"),
+                     workout_plan=data.get("workout_plan"),
+                     daily_plan=message.text)
+    
+    await state.clear()
+    await message.answer(
+        f"План записан ✅\n\n{get_day_wish()}\n\nЕсли хочешь что-то изменить — нажми кнопку ниже.",
+        reply_markup=finish_with_review_kb()
+    )
 
 async def evening_ask_workout_fact(obj, state: FSMContext):
     """obj может быть Message или CallbackQuery"""
