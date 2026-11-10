@@ -43,7 +43,7 @@ SPORT_PLAN_MAP = {
     "yes": ("Конечно", "💪"), "lazy": ("Хочу, но лень", "🛋️"), "no": ("Неа", "😴")
 }
 SWEET_PLAN_MAP = {
-    "noplan": ("Сегодня без сладкого", "💪"),  # <-- было "no_plan"
+    "no_plan": ("Сегодня без сладкого", "💪"),  # <-- ИСПРАВЛЕНО: было "noplan"
     "unsure": ("Ну не знаю...", "🤔"),
     "binge": ("Сегодня срываюсь!", "🍰")
 }
@@ -120,6 +120,44 @@ async def show_review_screen(message, user_id: int, state: FSMContext):
 
     await state.set_state(ReviewStates.waiting_action)
     await message.answer(text, parse_mode="HTML", reply_markup=review_kb())
+
+async def ask_workout_time(call: CallbackQuery, state: FSMContext):
+    """Спрашивает время тренировки после выбора сладкого"""
+    data = await state.get_data()
+    sport_planned = data.get("sport_planned")
+    
+    if sport_planned == "no":
+        await call.message.answer(
+            "Хочешь написать план на сегодня?",
+            reply_markup=daily_plan_kb()
+        )
+        await state.set_state(MorningStates.daily_plan)
+    else:
+        await call.message.answer(
+            "Во сколько у тебя тренировка/физра?\n"
+            "Напиши время в формате ЧЧ:ММ (например, 14:30) или нажми 'Пропустить':",
+            reply_markup=cancel_kb()
+        )
+        await state.set_state(MorningStates.workout_time)
+
+async def ask_workout_time_from_message(message: Message, state: FSMContext):
+    """То же самое, но для Message (после binge_details)"""
+    data = await state.get_data()
+    sport_planned = data.get("sport_planned")
+    
+    if sport_planned == "no":
+        await message.answer(
+            "Хочешь написать план на сегодня?",
+            reply_markup=daily_plan_kb()
+        )
+        await state.set_state(MorningStates.daily_plan)
+    else:
+        await message.answer(
+            "Во сколько у тебя тренировка/физра?\n"
+            "Напиши время в формате ЧЧ:ММ (например, 14:30) или нажми 'Пропустить':",
+            reply_markup=cancel_kb()
+        )
+        await state.set_state(MorningStates.workout_time)
 
 # === КОМАНДЫ ===
 
@@ -224,21 +262,12 @@ async def edit_sport_plan_start(call: CallbackQuery, state: FSMContext):
     await state.set_state(ReviewStates.editing_sport_plan)
     await call.answer()
 
-@router.callback_query(F.data.startswith("sweet_"), StateFilter(ReviewStates.editing_sweet_plan))
-async def edit_sweet_plan(call: CallbackQuery, state: FSMContext):
-    planned = "_".join(call.data.split("_")[1:])  # <-- ИСПРАВЛЕНО
-    today = get_current_day()
-    await update_log(call.from_user.id, today, sweet_planned=planned)
-    text, emoji = get_answer_text(SWEET_PLAN_MAP, planned)
-    await call.message.edit_text(
-        f"Постараешься не есть сладкое?\n<i>{text}</i> {emoji}",
-        parse_mode="HTML",
-        reply_markup=None
-    )
-    await call.message.answer(f"План по сладкому обновлен: {text} {emoji} ✅")
-    await show_review_screen(call.message, call.from_user.id, state)
+@router.callback_query(F.data == "review_sweet_plan")
+async def edit_sweet_plan_start(call: CallbackQuery, state: FSMContext):
+    await call.message.answer("Постараешься не есть сладкое?", reply_markup=sweet_planned_kb())
+    await state.set_state(ReviewStates.editing_sweet_plan)
     await call.answer()
-    
+
 @router.callback_query(F.data == "review_sweet_fact")
 async def edit_sweet_fact_start(call: CallbackQuery, state: FSMContext):
     await call.message.answer("Ты сегодня ела сладкое?", reply_markup=sweet_bool_kb())
@@ -308,9 +337,10 @@ async def edit_sport_plan(call: CallbackQuery, state: FSMContext):
     await show_review_screen(call.message, call.from_user.id, state)
     await call.answer()
 
+# ИСПРАВЛЕНО: убран дубликат, оставлена только одна функция с правильным парсингом
 @router.callback_query(F.data.startswith("sweet_"), StateFilter(ReviewStates.editing_sweet_plan))
 async def edit_sweet_plan(call: CallbackQuery, state: FSMContext):
-    planned = call.data.split("_")[1]
+    planned = "_".join(call.data.split("_")[1:])  # <-- ИСПРАВЛЕНО: берём всё после первого подчёркивания
     today = get_current_day()
     await update_log(call.from_user.id, today, sweet_planned=planned)
     text, emoji = get_answer_text(SWEET_PLAN_MAP, planned)
@@ -447,7 +477,7 @@ async def skip_workout_time_review(call: CallbackQuery, state: FSMContext):
 async def edit_daily_plan(message: Message, state: FSMContext):
     today = get_current_day()
     await update_log(message.from_user.id, today, daily_plan=message.text)
-    await message.answer(f"План обновлен ✅")
+    await message.answer("План обновлен ✅")
     await show_review_screen(message, message.from_user.id, state)
 
 # === УТРЕННИЙ СЦЕНАРИЙ ===
@@ -510,21 +540,21 @@ async def go_sport_after_lazy(call: CallbackQuery, state: FSMContext):
     await call.message.answer("Отлично! Удачи на тренировке 💪", reply_markup=continue_morning_kb())
     await call.answer()
 
+# ИСПРАВЛЕНО: теперь после выбора сладкого сразу идёт вопрос о тренировке
 @router.callback_query(F.data.startswith("sweet_"), StateFilter(MorningStates.sweet_planned))
 async def process_sweet_planned(call: CallbackQuery, state: FSMContext):
-    # Исправлено: берём всё после первого подчёркивания
-    planned = "_".join(call.data.split("_")[1:])
+    planned = "_".join(call.data.split("_")[1:])  # <-- ИСПРАВЛЕНО: берём всё после первого подчёркивания
     await state.update_data(sweet_planned=planned)
     text, emoji = get_answer_text(SWEET_PLAN_MAP, planned)
     
     await call.message.edit_text(
         f"Постараешься не есть сладкое?\n<i>{text}</i> {emoji}",
-        parse_mode="HTML",
-        reply_markup=None
+        parse_mode="HTML", reply_markup=None
     )
     
     if planned == "no_plan":
-        await call.message.answer("Отлично! Держись 💪", reply_markup=finish_morning_kb())
+        await call.message.answer("Отлично! Держись 💪")
+        await ask_workout_time(call, state)  # <-- ИСПРАВЛЕНО: сразу к тренировке
     elif planned == "unsure":
         fact = get_random_sugar_fact()
         await call.message.answer(
@@ -537,7 +567,6 @@ async def process_sweet_planned(call: CallbackQuery, state: FSMContext):
         await call.answer()
         return
     
-    await state.set_state(MorningStates.after_sweet)
     await call.answer()
 
 @router.callback_query(F.data == "no_sweet_after_unsure", StateFilter(MorningStates.after_sweet))
@@ -547,10 +576,10 @@ async def no_sweet_after_unsure(call: CallbackQuery, state: FSMContext):
     
     await call.message.edit_text(
         f"Постараешься не есть сладкое?\n<i>{text}</i> {emoji}",
-        parse_mode="HTML",
-        reply_markup=None
+        parse_mode="HTML", reply_markup=None
     )
     
+    await call.message.answer("Отлично! Держись 💪")
     await ask_workout_time(call, state)
     await call.answer()
 
@@ -565,76 +594,8 @@ async def process_binge_details(message: Message, state: FSMContext):
                      sweet_planned="binge",
                      notes=f"Binge: {message.text}")
     
-    await message.answer(f"Записала. Постарайся контролировать порцию 🍽️")
-    
-    # Переходим к вопросу о времени тренировки
+    await message.answer("Записала. Постарайся контролировать порцию 🍽️")
     await ask_workout_time_from_message(message, state)
-
-async def ask_workout_time(call: CallbackQuery, state: FSMContext):
-    """Спрашивает время тренировки после выбора сладкого"""
-    data = await state.get_data()
-    sport_planned = data.get("sport_planned")
-    
-    if sport_planned == "no":
-        # Не идёт на тренировку — сразу к плану на день
-        await call.message.answer(
-            "Хочешь написать план на сегодня?",
-            reply_markup=daily_plan_kb()
-        )
-        await state.set_state(MorningStates.daily_plan)
-    else:
-        # Идёт на тренировку — спрашиваем время
-        await call.message.answer(
-            "Во сколько у тебя тренировка/физра?\n"
-            "Напиши время в формате ЧЧ:ММ (например, 14:30) или нажми 'Пропустить':",
-            reply_markup=cancel_kb()
-        )
-        await state.set_state(MorningStates.workout_time)
-
-async def ask_workout_time_from_message(message: Message, state: FSMContext):
-    """То же самое, но для Message (после binge_details)"""
-    data = await state.get_data()
-    sport_planned = data.get("sport_planned")
-    
-    if sport_planned == "no":
-        await message.answer(
-            "Хочешь написать план на сегодня?",
-            reply_markup=daily_plan_kb()
-        )
-        await state.set_state(MorningStates.daily_plan)
-    else:
-        await message.answer(
-            "Во сколько у тебя тренировка/физра?\n"
-            "Напиши время в формате ЧЧ:ММ (например, 14:30) или нажми 'Пропустить':",
-            reply_markup=cancel_kb()
-        )
-        await state.set_state(MorningStates.workout_time)
-
-@router.callback_query(F.data == "finish_morning", StateFilter(MorningStates.after_sweet))
-async def finish_morning(call: CallbackQuery, state: FSMContext):
-    """Теперь это финальная кнопка после всех вопросов"""
-    today = get_current_day()
-    data = await state.get_data()
-    
-    await update_log(call.from_user.id, today,
-                     sleep_quality=data.get("sleep_quality"),
-                     sport_planned=data.get("sport_planned"),
-                     sweet_planned=data.get("sweet_planned"),
-                     workout_time=data.get("workout_time"),
-                     daily_plan=data.get("daily_plan"))
-    
-    await state.clear()
-    
-    await call.message.edit_text(
-        "Утро записано ✅",
-        reply_markup=None
-    )
-    
-    await call.message.answer(
-        f"{get_day_wish()}\n\nЕсли хочешь что-то изменить — нажми кнопку ниже.",
-        reply_markup=finish_with_review_kb()
-    )
-    await call.answer()
 
 @router.message(StateFilter(MorningStates.workout_time))
 async def process_workout_time_text(message: Message, state: FSMContext):
