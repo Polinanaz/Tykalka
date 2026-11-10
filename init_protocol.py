@@ -1,6 +1,7 @@
 import asyncio
 import sys
 import os
+from config import USER_ID
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from database import update_schedule_day, init_schedule_db
