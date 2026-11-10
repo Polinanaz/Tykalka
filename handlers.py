@@ -540,21 +540,23 @@ async def go_sport_after_lazy(call: CallbackQuery, state: FSMContext):
     await call.message.answer("Отлично! Удачи на тренировке 💪", reply_markup=continue_morning_kb())
     await call.answer()
 
-# ИСПРАВЛЕНО: теперь после выбора сладкого сразу идёт вопрос о тренировке
 @router.callback_query(F.data.startswith("sweet_"), StateFilter(MorningStates.sweet_planned))
 async def process_sweet_planned(call: CallbackQuery, state: FSMContext):
-    planned = "_".join(call.data.split("_")[1:])  # <-- ИСПРАВЛЕНО: берём всё после первого подчёркивания
+    # БЫЛО: planned = call.data.split("_")[1]
+    # СТАЛО:
+    planned = "_".join(call.data.split("_")[1:])  # берём всё после первого подчёркивания
+    
     await state.update_data(sweet_planned=planned)
     text, emoji = get_answer_text(SWEET_PLAN_MAP, planned)
     
     await call.message.edit_text(
         f"Постараешься не есть сладкое?\n<i>{text}</i> {emoji}",
-        parse_mode="HTML", reply_markup=None
+        parse_mode="HTML",
+        reply_markup=None
     )
     
     if planned == "no_plan":
-        await call.message.answer("Отлично! Держись 💪")
-        await ask_workout_time(call, state)  # <-- ИСПРАВЛЕНО: сразу к тренировке
+        await call.message.answer("Отлично! Держись 💪", reply_markup=finish_morning_kb())
     elif planned == "unsure":
         fact = get_random_sugar_fact()
         await call.message.answer(
@@ -567,6 +569,7 @@ async def process_sweet_planned(call: CallbackQuery, state: FSMContext):
         await call.answer()
         return
     
+    await state.set_state(MorningStates.after_sweet)
     await call.answer()
 
 @router.callback_query(F.data == "no_sweet_after_unsure", StateFilter(MorningStates.after_sweet))
