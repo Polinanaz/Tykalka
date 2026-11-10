@@ -41,6 +41,11 @@ class ReviewStates(StatesGroup):
     editing_mood = State()
     editing_workout_time = State()
     editing_daily_plan = State()
+    editing_workout_plan = State()  # <-- ДОБАВЛЕНО
+    editing_daily_plan_fact = State()  # <-- ДОБАВЛЕНО
+    editing_daily_plan_fact_text = State()  # <-- ДОБАВЛЕНО
+    editing_workout_fact = State()  # <-- ДОБАВЛЕНО
+    editing_workout_fact_text = State()  # <-- ДОБАВЛЕНО
 
 class ScheduleStates(StatesGroup):
     choosing_day = State()

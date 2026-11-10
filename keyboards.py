@@ -136,7 +136,10 @@ def review_kb():
         [InlineKeyboardButton(text="⚖️ Вес", callback_data="review_weight")],
         [InlineKeyboardButton(text="😊 Настроение", callback_data="review_mood")],
         [InlineKeyboardButton(text="⏰ Время тренировки", callback_data="review_workout_time")],
+        [InlineKeyboardButton(text="🏋️ План на тренировку", callback_data="review_workout_plan")],
         [InlineKeyboardButton(text="📝 План на день", callback_data="review_daily_plan")],
+        [InlineKeyboardButton(text="📝 План на день (факт)", callback_data="review_daily_plan_fact")],
+        [InlineKeyboardButton(text="🏋️ Тренировка (факт)", callback_data="review_workout_fact")],
         [InlineKeyboardButton(text="Готово ✓", callback_data="review_done")]
     ])
 
