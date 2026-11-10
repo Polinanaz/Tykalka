@@ -542,6 +542,22 @@ async def no_sweet_after_unsure(call: CallbackQuery, state: FSMContext):
     await ask_workout_time(call, state)
     await call.answer()
 
+@router.message(StateFilter(MorningStates.binge_details))
+async def process_binge_details(message: Message, state: FSMContext):
+    today = get_current_day()
+    data = await state.get_data()
+    
+    await update_log(message.from_user.id, today,
+                     sleep_quality=data.get("sleep_quality"),
+                     sport_planned=data.get("sport_planned"),
+                     sweet_planned="binge",
+                     notes=f"Binge: {message.text}")
+    
+    await message.answer(f"Записала. Постарайся контролировать порцию 🍽️")
+    
+    # Переходим к вопросу о времени тренировки
+    await ask_workout_time_from_message(message, state)
+
 async def ask_workout_time(call: CallbackQuery, state: FSMContext):
     """Спрашивает время тренировки после выбора сладкого"""
     data = await state.get_data()
@@ -664,21 +680,6 @@ async def skip_daily_plan(call: CallbackQuery, state: FSMContext):
         reply_markup=finish_with_review_kb()
     )
     await call.answer()
-
-@router.message(StateFilter(MorningStates.binge_details))
-async def process_binge_details(message: Message, state: FSMContext):
-    today = get_current_day()
-    data = await state.get_data()
-    await update_log(message.from_user.id, today,
-                     sleep_quality=data.get("sleep_quality"),
-                     sport_planned=data.get("sport_planned"),
-                     sweet_planned="binge",
-                     notes=f"Binge: {message.text}")
-    
-    await message.answer(f"Записала. Постарайся контролировать порцию 🍽️")
-    
-    # Переходим к вопросу о времени тренировки
-    await ask_workout_time_from_message(message, state)
 
 # === ВЕЧЕРНИЙ СЦЕНАРИЙ ===
 
