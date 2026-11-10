@@ -11,13 +11,6 @@ class MorningStates(StatesGroup):
     daily_plan = State()
     daily_plan_text = State()
 
-class EveningStates(StatesGroup):
-    sweet_bool = State()
-    sweet_type = State()
-    sweet_other = State()
-    sport_bool = State()
-    sport_types = State()
-
 class WeightStates(StatesGroup):
     waiting_weight = State()
 
@@ -34,3 +27,14 @@ class ReviewStates(StatesGroup):
     editing_mood = State()
     editing_workout_time = State()
     editing_daily_plan = State()  # <-- ДОБАВЛЕНО
+
+class EveningStates(StatesGroup):
+    sweet_bool = State()
+    sweet_type = State()
+    sweet_other = State()
+    sport_bool = State()
+    sport_types = State()
+    daily_plan_fact = State()  # НОВОЕ
+    daily_plan_fact_text = State()  # НОВОЕ
+    workout_fact = State()  # НОВОЕ
+    workout_fact_text = State()  # НОВОЕ

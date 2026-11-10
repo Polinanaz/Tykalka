@@ -116,6 +116,9 @@ async def show_review_screen(message, user_id: int, state: FSMContext):
     text += f"😊 <b>Настроение:</b> {format_value('mood', log.get('mood'))}\n"
     text += f"⏰ <b>Время тренировки:</b> {log.get('workout_time') or 'не указано'}\n"
     text += f"📝 <b>План на день:</b> {log.get('daily_plan') or 'не написан'}\n"
+    text += f"🏋️ <b>План на тренировку:</b> {log.get('workout_plan') or 'не написан'}\n"
+    text += f"📝 <b>План на день (факт):</b> {log.get('daily_plan_fact') or 'не отмечено'}\n"
+    text += f"🏋️ <b>Тренировка (факт):</b> {log.get('workout_fact') or 'не отмечено'}\n"
     text += "\nНажми на поле, которое хочешь изменить:"
 
     await state.set_state(ReviewStates.waiting_action)
@@ -609,8 +612,48 @@ async def process_workout_time_text(message: Message, state: FSMContext):
     today = get_current_day()
     await update_log(message.from_user.id, today, workout_time=time_str)
     await message.answer(f"Записала: тренировка в {time_str} ⏰")
-    await message.answer("Хочешь написать план на сегодня?", reply_markup=daily_plan_kb())
+    
+    # НОВОЕ: спрашиваем план на тренировку
+    await message.answer(
+        "Какой план на тренировку? (упражнения, подходы, цели)",
+        reply_markup=workout_plan_kb()
+    )
+    await state.set_state(MorningStates.workout_plan)
+
+@router.callback_query(F.data == "workout_plan_text", StateFilter(MorningStates.workout_plan))
+async def process_workout_plan_text(call: CallbackQuery, state: FSMContext):
+    await call.message.edit_text(
+        "Напиши план на тренировку (упражнения, подходы, цели):",
+        reply_markup=None
+    )
+    await state.set_state(MorningStates.workout_plan_text)
+    await call.answer()
+
+@router.message(StateFilter(MorningStates.workout_plan_text))
+async def save_workout_plan(message: Message, state: FSMContext):
+    today = get_current_day()
+    await update_log(message.from_user.id, today, workout_plan=message.text)
+    await message.answer(f"План на тренировку записан ✅")
+    
+    # Переходим к плану на день
+    await message.answer(
+        "Хочешь добавить задачи или заметки на день? (Напомню о них днём)",
+        reply_markup=daily_plan_kb()
+    )
     await state.set_state(MorningStates.daily_plan)
+
+@router.callback_query(F.data == "workout_plan_skip", StateFilter(MorningStates.workout_plan))
+async def skip_workout_plan(call: CallbackQuery, state: FSMContext):
+    await call.message.edit_text(
+        "Какой план на тренировку?\n<i>Пропущено</i>",
+        parse_mode="HTML", reply_markup=None
+    )
+    await call.message.answer(
+        "Хочешь добавить задачи или заметки на день? (Напомню о них днём)",
+        reply_markup=daily_plan_kb()
+    )
+    await state.set_state(MorningStates.daily_plan)
+    await call.answer()
 
 @router.callback_query(F.data == "plan_skip", StateFilter(MorningStates.workout_time))
 async def skip_workout_time(call: CallbackQuery, state: FSMContext):
@@ -618,8 +661,11 @@ async def skip_workout_time(call: CallbackQuery, state: FSMContext):
         "Во сколько у тебя тренировка/физра?\n<i>Пропущено</i>",
         parse_mode="HTML", reply_markup=None
     )
-    await call.message.answer("Хочешь написать план на сегодня?", reply_markup=daily_plan_kb())
-    await state.set_state(MorningStates.daily_plan)
+    await call.message.answer(
+        "Какой план на тренировку? (упражнения, подходы, цели)",
+        reply_markup=workout_plan_kb()
+    )
+    await state.set_state(MorningStates.workout_plan)
     await call.answer()
 
 @router.callback_query(F.data == "plan_text", StateFilter(MorningStates.daily_plan))
@@ -755,12 +801,151 @@ async def finish_day(call: CallbackQuery, state: FSMContext):
                      sweet_type=data.get("sweet_type"),
                      sport_bool=data.get("sport_bool"),
                      sport_types=str(data.get("sport_types", [])))
-    await state.clear()
-    await call.message.edit_text("День записан ✅", reply_markup=None)
+    
+    await call.message.edit_text("Сладкое и спорт записаны ✅", reply_markup=None)
+    
+    # НОВОЕ: спрашиваем про план на день
     await call.message.answer(
-        f"{get_night_wish()}\n\nЕсли хочешь что-то изменить — нажми кнопку ниже.",
+        "Что ты сделала из утреннего плана на день?",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="Всё сделала ✅", callback_data="daily_plan_all")],
+            [InlineKeyboardButton(text="Часть 🟡", callback_data="daily_plan_partial")],
+            [InlineKeyboardButton(text="Ничего ❌", callback_data="daily_plan_none")]
+        ])
+    )
+    await state.set_state(EveningStates.daily_plan_fact)
+
+# === ВЕЧЕРНИЙ ОПРОС: ПЛАН НА ДЕНЬ И ТРЕНИРОВКУ ===
+
+@router.callback_query(F.data == "evening_daily_plan", StateFilter(EveningStates.after_sport))
+async def evening_ask_daily_plan(call: CallbackQuery, state: FSMContext):
+    today = get_current_day()
+    log = await get_today_log(call.from_user.id)
+    plan = log.get('daily_plan') if log else None
+    
+    if not plan or plan == '':
+        await call.message.answer("Утром ты не записывала план на день. Пропускаем этот вопрос.")
+        await evening_ask_workout_fact(call, state)
+        await call.answer()
+        return
+    
+    await call.message.edit_text(
+        f"📝 Твой утренний план на день:\n<i>{plan}</i>\n\nЧто ты сделала из этого?",
+        parse_mode="HTML",
+        reply_markup=daily_plan_done_kb()
+    )
+    await state.set_state(EveningStates.daily_plan_fact)
+    await call.answer()
+
+@router.callback_query(F.data == "daily_plan_all", StateFilter(EveningStates.daily_plan_fact))
+async def evening_daily_plan_all(call: CallbackQuery, state: FSMContext):
+    today = get_current_day()
+    await update_log(call.from_user.id, today, daily_plan_fact="all")
+    await call.message.edit_text(
+        "Что ты сделала из плана?\n<i>Всё сделала ✅</i>",
+        parse_mode="HTML", reply_markup=None
+    )
+    await call.message.answer("Супер! 💪 А как прошла тренировка?")
+    await evening_ask_workout_fact(call, state)
+    await call.answer()
+
+@router.callback_query(F.data == "daily_plan_partial", StateFilter(EveningStates.daily_plan_fact))
+async def evening_daily_plan_partial(call: CallbackQuery, state: FSMContext):
+    await call.message.edit_text(
+        "Что ты сделала из плана?\n<i>Часть 🟡</i>",
+        parse_mode="HTML", reply_markup=None
+    )
+    await call.message.answer("Напиши, что успела сделать:")
+    await state.set_state(EveningStates.daily_plan_fact_text)
+    await call.answer()
+
+@router.callback_query(F.data == "daily_plan_none", StateFilter(EveningStates.daily_plan_fact))
+async def evening_daily_plan_none(call: CallbackQuery, state: FSMContext):
+    today = get_current_day()
+    await update_log(call.from_user.id, today, daily_plan_fact="none")
+    await call.message.edit_text(
+        "Что ты сделала из плана?\n<i>Ничего ❌</i>",
+        parse_mode="HTML", reply_markup=None
+    )
+    await call.message.answer("Бывает. А как прошла тренировка?")
+    await evening_ask_workout_fact(call, state)
+    await call.answer()
+
+@router.message(StateFilter(EveningStates.daily_plan_fact_text))
+async def save_daily_plan_fact_text(message: Message, state: FSMContext):
+    today = get_current_day()
+    await update_log(message.from_user.id, today, daily_plan_fact=f"partial:{message.text}")
+    await message.answer("Записала. А как прошла тренировка?")
+    await evening_ask_workout_fact(message, state)
+
+async def evening_ask_workout_fact(obj, state: FSMContext):
+    """obj может быть Message или CallbackQuery"""
+    today = get_current_day()
+    log = await get_today_log(obj.from_user.id)
+    workout_plan = log.get('workout_plan') if log else None
+    workout_time = log.get('workout_time') if log else None
+    
+    if not workout_plan or not workout_time:
+        # Нет плана на тренировку — пропускаем
+        send_func = obj.answer if hasattr(obj, 'answer') else obj.message.answer
+        await send_func("Утром ты не записывала план на тренировку. Вечерний опрос завершён ✅")
+        await state.clear()
+        return
+    
+    send_func = obj.answer if hasattr(obj, 'answer') else obj.message.answer
+    await send_func(
+        f"🏋️ Твой утренний план на тренировку ({workout_time}):\n<i>{workout_plan}</i>\n\nКак прошла тренировка?",
+        parse_mode="HTML",
+        reply_markup=workout_done_kb()
+    )
+    await state.set_state(EveningStates.workout_fact)
+
+@router.callback_query(F.data == "workout_full", StateFilter(EveningStates.workout_fact))
+async def evening_workout_full(call: CallbackQuery, state: FSMContext):
+    today = get_current_day()
+    await update_log(call.from_user.id, today, workout_fact="full")
+    await call.message.edit_text(
+        "Как прошла тренировка?\n<i>Выполнила план 💪</i>",
+        parse_mode="HTML", reply_markup=None
+    )
+    await finish_evening_survey(call, state)
+    await call.answer()
+
+@router.callback_query(F.data == "workout_partial", StateFilter(EveningStates.workout_fact))
+async def evening_workout_partial(call: CallbackQuery, state: FSMContext):
+    await call.message.edit_text(
+        "Как прошла тренировка?\n<i>Частично 🟡</i>",
+        parse_mode="HTML", reply_markup=None
+    )
+    await call.message.answer("Напиши, что успела:")
+    await state.set_state(EveningStates.workout_fact_text)
+    await call.answer()
+
+@router.callback_query(F.data == "workout_skip", StateFilter(EveningStates.workout_fact))
+async def evening_workout_skip(call: CallbackQuery, state: FSMContext):
+    today = get_current_day()
+    await update_log(call.from_user.id, today, workout_fact="skip")
+    await call.message.edit_text(
+        "Как прошла тренировка?\n<i>Пропустила ❌</i>",
+        parse_mode="HTML", reply_markup=None
+    )
+    await finish_evening_survey(call, state)
+    await call.answer()
+
+@router.message(StateFilter(EveningStates.workout_fact_text))
+async def save_workout_fact_text(message: Message, state: FSMContext):
+    today = get_current_day()
+    await update_log(message.from_user.id, today, workout_fact=f"partial:{message.text}")
+    await finish_evening_survey(message, state)
+
+async def finish_evening_survey(obj, state: FSMContext):
+    """Финал вечернего опроса"""
+    send_func = obj.answer if hasattr(obj, 'answer') else obj.message.answer
+    await send_func(
+        f"Вечерний опрос завершён ✅\n\n{get_night_wish()}\n\nЕсли хочешь что-то изменить — нажми кнопку ниже.",
         reply_markup=finish_with_review_kb()
     )
+    await state.clear()
 
 # === ВЫГРУЗКА ===
 

@@ -139,3 +139,26 @@ def review_kb():
         [InlineKeyboardButton(text="📝 План на день", callback_data="review_daily_plan")],
         [InlineKeyboardButton(text="Готово ✓", callback_data="review_done")]
     ])
+
+def workout_plan_kb():
+    """После ввода времени тренировки"""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Напишу план тренировки ✍️", callback_data="workout_plan_text")],
+        [InlineKeyboardButton(text="Пропустить", callback_data="workout_plan_skip")]
+    ])
+
+def daily_plan_done_kb():
+    """Вечером — что сделала из плана"""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Всё сделала ✅", callback_data="daily_plan_all")],
+        [InlineKeyboardButton(text="Часть сделала 🟡", callback_data="daily_plan_partial")],
+        [InlineKeyboardButton(text="Ничего не сделала ❌", callback_data="daily_plan_none")]
+    ])
+
+def workout_done_kb():
+    """Вечером — как прошла тренировка"""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Выполнила план 💪", callback_data="workout_full")],
+        [InlineKeyboardButton(text="Частично 🟡", callback_data="workout_partial")],
+        [InlineKeyboardButton(text="Пропустила/не пошла ❌", callback_data="workout_skip")]
+    ])

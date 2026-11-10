@@ -34,13 +34,18 @@ async def morning_check(bot: Bot, user_id: int):
 
 async def afternoon_check(bot: Bot, user_id: int):
     log = await get_today_log(user_id)
-    text = "Не забудь пообедать нормальной едой! 🥗\n\nКак настроение?"
-
+    text = "Не забудь пообедать нормальной едой! 🥗\n\n"
+    
+    # НОВОЕ: напоминаем план на день
+    if log and log.get('daily_plan'):
+        text += f"📝 Твой план на день:\n{log['daily_plan']}\n\n"
+    
+    text += "Как настроение?"
+    
     if log and log.get('sweet_planned') == 'binge':
         text = "Помнишь, утром ты планировала сорваться? Держись 💪\n\n" + text
-
+    
     await bot.send_message(user_id, text, reply_markup=afternoon_kb())
-
 
 async def evening_check(bot: Bot, user_id: int):
     await bot.send_message(
@@ -79,20 +84,22 @@ async def workout_reminder(bot: Bot, user_id: int):
 
     if timedelta(minutes=55) <= time_until_workout <= timedelta(minutes=65):
         daily_plan = log.get('daily_plan', '')
+        workout_plan = log.get('workout_plan', '')  # НОВОЕ
         sport_planned = log.get('sport_planned', '')
-
+        
         text = f"⏰ Через час у тебя тренировка ({log['workout_time']})!\n\n"
-
+        
+        if workout_plan:  # НОВОЕ
+            text += f"🏋️ План на тренировку:\n{workout_plan}\n\n"
+        
         if daily_plan:
-            text += f"📝 Твой план на сегодня:\n{daily_plan}\n\n"
-
+            text += f"📝 План на день:\n{daily_plan}\n\n"
+        
         if sport_planned == 'lazy':
             text += "💪 Помнишь, утром было лень? Сейчас самое время собраться!"
         elif sport_planned == 'yes':
             text += "💪 Ты планировала пойти. Удачи!"
-        elif sport_planned == 'no':
-            text += "🤔 Ты сегодня не планировала, но может всё-таки сходишь?"
-
+        
         await bot.send_message(user_id, text)
 
 
