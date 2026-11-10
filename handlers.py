@@ -596,11 +596,12 @@ async def process_binge_details(message: Message, state: FSMContext):
                      sleep_quality=data.get("sleep_quality"),
                      sport_planned=data.get("sport_planned"),
                      sweet_planned="binge",
+                     workout_time=data.get("workout_time"),
+                     workout_plan=data.get("workout_plan"),
                      notes=f"Binge: {message.text}")
     
     await message.answer("Записала. Постарайся контролировать порцию 🍽️")
     await ask_workout_time_from_message(message, state)
-
 @router.message(StateFilter(MorningStates.workout_time))
 async def process_workout_time_text(message: Message, state: FSMContext):
     time_str = message.text.strip()
@@ -693,14 +694,14 @@ async def skip_daily_plan(call: CallbackQuery, state: FSMContext):
     today = get_current_day()
     data = await state.get_data()
     
-    # СОХРАНЯЕМ ДАННЫЕ ПЕРЕД ЗАВЕРШЕНИЕМ
+    # ФИНАЛЬНОЕ СОХРАНЕНИЕ ВСЕХ ДАННЫХ
     await update_log(call.from_user.id, today,
                      sleep_quality=data.get("sleep_quality"),
                      sport_planned=data.get("sport_planned"),
                      sweet_planned=data.get("sweet_planned"),
                      workout_time=data.get("workout_time"),
                      workout_plan=data.get("workout_plan"),
-                     daily_plan=data.get("daily_plan"))
+                     daily_plan=None)
     
     await state.clear()
     await call.message.edit_text(
@@ -889,7 +890,7 @@ async def save_daily_plan(message: Message, state: FSMContext):
     today = get_current_day()
     data = await state.get_data()
     
-    # СОХРАНЯЕМ ВСЕ ДАННЫЕ
+    # ФИНАЛЬНОЕ СОХРАНЕНИЕ ВСЕХ ДАННЫХ
     await update_log(message.from_user.id, today,
                      sleep_quality=data.get("sleep_quality"),
                      sport_planned=data.get("sport_planned"),
