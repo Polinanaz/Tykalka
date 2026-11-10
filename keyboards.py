@@ -162,3 +162,26 @@ def workout_done_kb():
         [InlineKeyboardButton(text="Частично 🟡", callback_data="workout_partial")],
         [InlineKeyboardButton(text="Пропустила/не пошла ❌", callback_data="workout_skip")]
     ])
+
+def schedule_days_kb():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="Понедельник", callback_data="sched_monday"),
+            InlineKeyboardButton(text="Вторник", callback_data="sched_tuesday")
+        ],
+        [
+            InlineKeyboardButton(text="Среда", callback_data="sched_wednesday"),
+            InlineKeyboardButton(text="Четверг", callback_data="sched_thursday")
+        ],
+        [
+            InlineKeyboardButton(text="Пятница", callback_data="sched_friday"),
+            InlineKeyboardButton(text="Суббота", callback_data="sched_saturday")
+        ],
+        [InlineKeyboardButton(text="Воскресенье", callback_data="sched_sunday")],
+        [InlineKeyboardButton(text="❌ Закрыть", callback_data="schedule_close")]
+    ])
+
+def cancel_schedule_kb():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Отмена ❌", callback_data="schedule_cancel")]
+    ])

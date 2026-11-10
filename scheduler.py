@@ -111,3 +111,57 @@ def setup_scheduler(bot: Bot, user_id: int):
     scheduler.add_job(weekly_report, 'cron', day_of_week='tue', hour=9, minute=0, args=[bot, user_id])
     scheduler.add_job(workout_reminder, 'interval', minutes=15, args=[bot, user_id])
     scheduler.start()
+
+# Маппинг для получения текущего дня недели на русском для БД
+DB_DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+
+async def schedule_morning_reminder(bot: Bot, user_id: int):
+    await send_schedule_message(bot, user_id, "morning", "Доброе утро! ☀️ Вот твой протокол на сегодня:")
+
+async def schedule_day_reminder(bot: Bot, user_id: int):
+    await send_schedule_message(bot, user_id, "day", "Напоминание на день 🌤")
+
+async def schedule_evening_reminder(bot: Bot, user_id: int):
+    await send_schedule_message(bot, user_id, "evening", "Вечерний чек-лист 🌙")
+
+async def send_schedule_message(bot: Bot, user_id: int, time_of_day: str, header: str):
+    from database import get_user_schedule
+    import datetime
+    
+    schedule = await get_user_schedule(user_id)
+    today_en = DB_DAYS[datetime.datetime.now().weekday()]
+    
+    day_schedule = schedule.get(today_en, "")
+    if not day_schedule:
+        return # Если на этот день ничего не настроено, молчим
+        
+    # Парсим текст, чтобы вытащить нужную часть (Утро/День/Вечер)
+    # Мы сохраняли их с маркерами "☀️ Утро:", "🌤 День:", "🌙 Вечер:"
+    parts = day_schedule.split("🌙 Вечер:")
+    evening_part = parts[1].strip() if len(parts) > 1 else ""
+    
+    parts = parts[0].split("🌤 День:")
+    day_part = parts[1].strip() if len(parts) > 1 else ""
+    morning_part = parts[0].replace("☀️ Утро:", "").strip()
+    
+    target_text = ""
+    if time_of_day == "morning":
+        target_text = morning_part
+    elif time_of_day == "day":
+        target_text = day_part
+    elif time_of_day == "evening":
+        target_text = evening_part
+        
+    if target_text and target_text != "Не требуется":
+        await bot.send_message(user_id, f"{header}\n\n{target_text}")
+
+# В функцию setup_scheduler добавь эти строки:
+def setup_scheduler(bot: Bot, user_id: int):
+    # ... твои существующие джобы ...
+    
+    # Новые джобы для расписания (время можно поменять под себя)
+    scheduler.add_job(schedule_morning_reminder, 'cron', hour=8, minute=0, args=[bot, user_id])
+    scheduler.add_job(schedule_day_reminder, 'cron', hour=13, minute=0, args=[bot, user_id])
+    scheduler.add_job(schedule_evening_reminder, 'cron', hour=21, minute=0, args=[bot, user_id])
+    
+    scheduler.start()

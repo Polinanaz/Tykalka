@@ -8,7 +8,7 @@ from database import (
 )
 import os
 import random
-from states import MorningStates, EveningStates, WeightStates, ReviewStates
+from states import MorningStates, EveningStates, WeightStates, ReviewStates, ScheduleStates
 from keyboards import *
 from facts import get_random_sport_fact, get_random_sugar_fact
 from export import export_data
@@ -979,4 +979,98 @@ async def start_evening_survey(call: CallbackQuery, state: FSMContext):
         reply_markup=sweet_bool_kb()
     )
     await state.set_state(EveningStates.sweet_bool)
+    await call.answer()
+
+# === УПРАВЛЕНИЕ РАСПИСАНИЕМ ===
+
+DAYS_MAP = {
+    "monday": "Понедельник", "tuesday": "Вторник", "wednesday": "Среда",
+    "thursday": "Четверг", "friday": "Пятница", "saturday": "Суббота", "sunday": "Воскресенье"
+}
+
+@router.message(Command("schedule"))
+async def cmd_schedule(message: Message, state: FSMContext):
+    schedule = await get_user_schedule(message.from_user.id)
+    text = "📅 **Твое текущее расписание напоминаний:**\n\n"
+    
+    for day_en, day_ru in DAYS_MAP.items():
+        if schedule.get(day_en):
+            text += f"🔹 *{day_ru}*:\n{schedule[day_en]}\n\n"
+        else:
+            text += f"⚪ *{day_ru}*: не настроено\n\n"
+            
+    text += "Выбери день, чтобы изменить или добавить напоминания:"
+    
+    await message.answer(text, parse_mode="Markdown", reply_markup=schedule_days_kb())
+    await state.set_state(ScheduleStates.choosing_day)
+
+@router.callback_query(F.data.startswith("sched_"), StateFilter(ScheduleStates.choosing_day))
+async def choose_schedule_day(call: CallbackQuery, state: FSMContext):
+    day = call.data.split("_")[1]
+    await state.update_data(editing_day=day)
+    
+    await call.message.edit_text(
+        f"Настройка: *{DAYS_MAP[day]}*\n\n"
+        f"Напиши текст напоминания на **УТРО** (или отправь '-', если не нужно):\n"
+        f"*(Например: 💊 Ретиноиды, Ярина, SPF 30+)*",
+        parse_mode="Markdown",
+        reply_markup=cancel_schedule_kb()
+    )
+    await state.set_state(ScheduleStates.waiting_morning)
+    await call.answer()
+
+@router.message(StateFilter(ScheduleStates.waiting_morning))
+async def save_schedule_morning(message: Message, state: FSMContext):
+    text = message.text.strip()
+    if text == '-': text = "Не требуется"
+    await state.update_data(morning_text=text)
+    
+    await message.answer(
+        "Записала. Теперь напиши текст напоминания на **ДЕНЬ** (или отправь '-'):\n"
+        "*(Например: Не забудь развести Дикироген в бутылку 1.5л!)*",
+        reply_markup=cancel_schedule_kb()
+    )
+    await state.set_state(ScheduleStates.waiting_day)
+
+@router.message(StateFilter(ScheduleStates.waiting_day))
+async def save_schedule_day(message: Message, state: FSMContext):
+    text = message.text.strip()
+    if text == '-': text = "Не требуется"
+    await state.update_data(day_text=text)
+    
+    await message.answer(
+        "Записала. И напоследок, текст напоминания на **ВЕЧЕР** (или отправь '-'):\n"
+        "*(Например: 💊 Ретиноиды. 500мл воды после сауны!)*",
+        reply_markup=cancel_schedule_kb()
+    )
+    await state.set_state(ScheduleStates.waiting_evening)
+
+@router.message(StateFilter(ScheduleStates.waiting_evening))
+async def save_schedule_evening(message: Message, state: FSMContext):
+    text = message.text.strip()
+    if text == '-': text = "Не требуется"
+    await state.update_data(evening_text=text)
+    
+    data = await state.get_data()
+    day = data.get("editing_day")
+    
+    await update_schedule_day(
+        message.from_user.id, 
+        day, 
+        data.get("morning_text"), 
+        data.get("day_text"), 
+        text
+    )
+    
+    await state.clear()
+    await message.answer(
+        f"✅ Расписание на *{DAYS_MAP[day]}* обновлено!\n"
+        f"Используй /schedule, чтобы посмотреть или изменить снова.",
+        parse_mode="Markdown"
+    )
+
+@router.callback_query(F.data.in_(["schedule_close", "schedule_cancel"]), StateFilter(ScheduleStates))
+async def cancel_schedule(call: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await call.message.edit_text("Настройка расписания отменена.", reply_markup=None)
     await call.answer()

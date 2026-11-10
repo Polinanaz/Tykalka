@@ -177,3 +177,54 @@ async def migrate_db():
                 print(f"Добавлена колонка {col}")
         
         await db.commit()
+
+async def init_schedule_db():
+    """Создает таблицу пользовательских расписаний"""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute('''
+            CREATE TABLE IF NOT EXISTS user_schedules (
+                user_id INTEGER PRIMARY KEY,
+                monday TEXT, tuesday TEXT, wednesday TEXT,
+                thursday TEXT, friday TEXT, saturday TEXT, sunday TEXT
+            )
+        ''')
+        await db.commit()
+
+async def get_user_schedule(user_id: int) -> dict:
+    """Возвращает расписание пользователя. Если нет, возвращает пустое."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            'SELECT * FROM user_schedules WHERE user_id = ?', (user_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            if row:
+                return dict(row)
+            # Возвращаем шаблон с пустыми строками, если записи нет
+            return {day: "" for day in ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]}
+
+async def update_schedule_day(user_id: int, day: str, morning: str, day_text: str, evening: str):
+    """Обновляет расписание для конкретного дня"""
+    schedule_text = f"☀️ Утро:\n{morning}\n\n🌤 День:\n{day_text}\n\n🌙 Вечер:\n{evening}"
+    
+    async with aiosqlite.connect(DB_PATH) as db:
+        # Проверяем, есть ли запись
+        async with db.execute('SELECT user_id FROM user_schedules WHERE user_id = ?', (user_id,)) as cursor:
+            exists = await cursor.fetchone()
+            
+        if exists:
+            await db.execute(
+                f'UPDATE user_schedules SET {day} = ? WHERE user_id = ?',
+                (schedule_text, user_id)
+            )
+        else:
+            # Создаем новую запись с пустыми остальными днями
+            columns = ['user_id', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+            values = [user_id] + ["" for _ in range(7)]
+            # Находим индекс дня (0=monday, 1=tuesday...)
+            days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+            values[days.index(day) + 1] = schedule_text
+            
+            placeholders = ', '.join(['?' for _ in values])
+            await db.execute(f'INSERT INTO user_schedules ({", ".join(columns)}) VALUES ({placeholders})', values)
+        await db.commit()
