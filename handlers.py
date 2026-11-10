@@ -43,7 +43,7 @@ SPORT_PLAN_MAP = {
     "yes": ("Конечно", "💪"), "lazy": ("Хочу, но лень", "🛋️"), "no": ("Неа", "😴")
 }
 SWEET_PLAN_MAP = {
-    "noplan": ("Сегодня без сладкого", "💪"),  # <-- ИЗМЕНИ с "no_plan" на "noplan"
+    "no_plan": ("Сегодня без сладкого", "💪"),  # <-- ИЗМЕНИ с "no_plan" на "noplan"
     "unsure": ("Ну не знаю...", "🤔"),
     "binge": ("Сегодня срываюсь!", "🍰")
 }
@@ -555,7 +555,7 @@ async def process_sweet_planned(call: CallbackQuery, state: FSMContext):
         reply_markup=None
     )
     
-    if planned == "noplan":  # <-- теперь будет работать
+    if planned == "no_plan":  # <-- теперь будет работать
         await call.message.answer("Отлично! Держись 💪")
         await ask_workout_time(call, state)  # <-- СПРАШИВАЕТ ПРО ВРЕМЯ
     elif planned == "unsure":
@@ -574,8 +574,8 @@ async def process_sweet_planned(call: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data == "no_sweet_after_unsure", StateFilter(MorningStates.after_sweet))
 async def no_sweet_after_unsure(call: CallbackQuery, state: FSMContext):
-    await state.update_data(sweet_planned="noplan")
-    text, emoji = get_answer_text(SWEET_PLAN_MAP, "noplan")
+    await state.update_data(sweet_planned="no_plan")
+    text, emoji = get_answer_text(SWEET_PLAN_MAP, "no_plan")
     
     await call.message.edit_text(
         f"Постараешься не есть сладкое?\n<i>{text}</i> {emoji}",
