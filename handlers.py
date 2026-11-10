@@ -4,7 +4,8 @@ from aiogram.types import Message, CallbackQuery, FSInputFile
 from aiogram.fsm.context import FSMContext
 from database import (
     save_log, update_log, get_today_log, get_current_day,
-    clear_database, remove_duplicates, parse_workout_time
+    clear_database, remove_duplicates, parse_workout_time,
+    get_user_schedule, update_schedule_day, init_schedule_db
 )
 import os
 import random
