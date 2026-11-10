@@ -3,10 +3,13 @@ from aiogram.fsm.state import State, StatesGroup
 class MorningStates(StatesGroup):
     sleep_quality = State()
     sport_planned = State()
-    after_sport = State()  # После факта про спорт
+    after_sport = State()
     sweet_planned = State()
-    after_sweet = State()  # После факта про сахар
+    after_sweet = State()
     binge_details = State()
+    workout_time = State()
+    daily_plan = State()
+    daily_plan_text = State()  # <-- ДОБАВЛЕНО
 
 class EveningStates(StatesGroup):
     sweet_bool = State()
@@ -28,3 +31,6 @@ class ReviewStates(StatesGroup):
     editing_sport_fact = State()
     editing_sport_types = State()
     editing_weight = State()
+    editing_mood = State()
+    editing_workout_time = State()
+    editing_daily_plan = State()  # <-- ДОБАВЛЕНО

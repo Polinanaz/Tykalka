@@ -99,8 +99,34 @@ def finish_morning_kb():
         [InlineKeyboardButton(text="Завершить утро ✓", callback_data="finish_morning")]
     ])
 
+
+def finish_with_review_kb():
+    """Клавиатура в конце этапа с возможностью редактирования"""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✏️ Изменить ответы", callback_data="review_start")],
+        [InlineKeyboardButton(text="Всё верно ✓", callback_data="review_done")]
+    ])
+
+def mood_kb():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Хорошее 😊", callback_data="mood_good")],
+        [InlineKeyboardButton(text="Нормальное 😐", callback_data="mood_normal")],
+        [InlineKeyboardButton(text="Плохое 😫", callback_data="mood_bad")]
+    ])
+
+def cancel_kb():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Пропустить ⏭️", callback_data="plan_skip")]
+    ])
+
+def daily_plan_kb():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Напишу текстом ✍️", callback_data="plan_text")],
+        [InlineKeyboardButton(text="Пропустить", callback_data="plan_skip")]
+    ])
+
+
 def review_kb():
-    """Клавиатура для просмотра и редактирования"""
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="😴 Сон", callback_data="review_sleep")],
         [InlineKeyboardButton(text="💪 План спорт", callback_data="review_sport_plan")],
@@ -108,12 +134,8 @@ def review_kb():
         [InlineKeyboardButton(text="🍬 Факт сладкое", callback_data="review_sweet_fact")],
         [InlineKeyboardButton(text="💪 Факт спорт", callback_data="review_sport_fact")],
         [InlineKeyboardButton(text="⚖️ Вес", callback_data="review_weight")],
+        [InlineKeyboardButton(text="😊 Настроение", callback_data="review_mood")],
+        [InlineKeyboardButton(text="⏰ Время тренировки", callback_data="review_workout_time")],
+        [InlineKeyboardButton(text="📝 План на день", callback_data="review_daily_plan")],
         [InlineKeyboardButton(text="Готово ✓", callback_data="review_done")]
-    ])
-
-def finish_with_review_kb():
-    """Клавиатура в конце этапа с возможностью редактирования"""
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="✏️ Изменить ответы", callback_data="review_start")],
-        [InlineKeyboardButton(text="Всё верно ✓", callback_data="review_done")]
     ])
