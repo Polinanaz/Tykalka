@@ -16,7 +16,7 @@ def sport_planned_kb():
 
 def sweet_planned_kb():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Сегодня без сладкого 💪", callback_data="sweet_noplan")],
+        [InlineKeyboardButton(text="Сегодня без сладкого 💪", callback_data="sweet_no_plan")],  # <-- ДОБАВЬ подчёркивание
         [InlineKeyboardButton(text="Ну не знаю...", callback_data="sweet_unsure")],
         [InlineKeyboardButton(text="Сегодня срываюсь!", callback_data="sweet_binge")]
     ])
