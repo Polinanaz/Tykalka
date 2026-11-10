@@ -1,11 +1,13 @@
 import asyncio
 import sys
 import os
-from config import USER_ID
+
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+from config import BOT_TOKEN, USER_ID
 from database import update_schedule_day, init_schedule_db
 
-async def main():
+async def init_protocol():
     await init_schedule_db()
     
     # Понедельник
@@ -67,4 +69,4 @@ async def main():
     print("✅ Расписание успешно загружено в базу данных!")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(init_protocol())
