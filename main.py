@@ -3,12 +3,13 @@ from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 
 from config import BOT_TOKEN, USER_ID
-from database import init_db
+from database import init_db, migrate_db
 from handlers import router
 from scheduler import setup_scheduler
 
 async def main():
     await init_db()
+    await migrate_db()  # <-- ДОБАВИТЬ
     
     bot = Bot(token=BOT_TOKEN)
     dp = Dispatcher(storage=MemoryStorage())
@@ -17,6 +18,5 @@ async def main():
     setup_scheduler(bot, USER_ID)
     
     await dp.start_polling(bot)
-
 if __name__ == "__main__":
     asyncio.run(main())

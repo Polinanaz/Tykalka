@@ -9,7 +9,7 @@ class MorningStates(StatesGroup):
     binge_details = State()
     workout_time = State()
     daily_plan = State()
-    daily_plan_text = State()  # <-- ДОБАВЛЕНО
+    daily_plan_text = State()
 
 class EveningStates(StatesGroup):
     sweet_bool = State()

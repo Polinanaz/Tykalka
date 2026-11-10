@@ -153,3 +153,21 @@ async def remove_duplicates():
             )
         await db.commit()
         print(f"Удалено дубликатов: {len(duplicates)}")
+
+async def migrate_db():
+    """Добавляет недостающие колонки в существующую БД"""
+    async with aiosqlite.connect(DB_PATH) as db:
+        # Проверяем, какие колонки уже есть
+        async with db.execute("PRAGMA table_info(daily_logs)") as cursor:
+            columns = [row[1] for row in await cursor.fetchall()]
+        
+        # Добавляем недостающие
+        if 'workout_time' not in columns:
+            await db.execute("ALTER TABLE daily_logs ADD COLUMN workout_time TEXT")
+            print("Добавлена колонка workout_time")
+        
+        if 'daily_plan' not in columns:
+            await db.execute("ALTER TABLE daily_logs ADD COLUMN daily_plan TEXT")
+            print("Добавлена колонка daily_plan")
+        
+        await db.commit()
