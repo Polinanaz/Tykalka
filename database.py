@@ -43,6 +43,9 @@ async def init_db():
                 notes TEXT,
                 workout_time TEXT,
                 daily_plan TEXT,
+                workout_plan TEXT,
+                daily_plan_fact TEXT,
+                workout_fact TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
@@ -155,7 +158,7 @@ async def remove_duplicates():
         print(f"Удалено дубликатов: {len(duplicates)}")
 
 async def migrate_db():
-    """Добавляет недостающие колонки"""
+    """Добавляет недостающие колонки в существующую БД"""
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute("PRAGMA table_info(daily_logs)") as cursor:
             columns = [row[1] for row in await cursor.fetchall()]

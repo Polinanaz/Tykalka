@@ -8,8 +8,21 @@ class MorningStates(StatesGroup):
     after_sweet = State()
     binge_details = State()
     workout_time = State()
+    workout_plan = State()          # <-- ДОБАВЛЕНО
+    workout_plan_text = State()     # <-- ДОБАВЛЕНО
     daily_plan = State()
     daily_plan_text = State()
+
+class EveningStates(StatesGroup):
+    sweet_bool = State()
+    sweet_type = State()
+    sweet_other = State()
+    sport_bool = State()
+    sport_types = State()
+    daily_plan_fact = State()       # <-- ДОБАВЛЕНО
+    daily_plan_fact_text = State()  # <-- ДОБАВЛЕНО
+    workout_fact = State()          # <-- ДОБАВЛЕНО
+    workout_fact_text = State()     # <-- ДОБАВЛЕНО
 
 class WeightStates(StatesGroup):
     waiting_weight = State()
@@ -26,15 +39,4 @@ class ReviewStates(StatesGroup):
     editing_weight = State()
     editing_mood = State()
     editing_workout_time = State()
-    editing_daily_plan = State()  # <-- ДОБАВЛЕНО
-
-class EveningStates(StatesGroup):
-    sweet_bool = State()
-    sweet_type = State()
-    sweet_other = State()
-    sport_bool = State()
-    sport_types = State()
-    daily_plan_fact = State()  # НОВОЕ
-    daily_plan_fact_text = State()  # НОВОЕ
-    workout_fact = State()  # НОВОЕ
-    workout_fact_text = State()  # НОВОЕ
+    editing_daily_plan = State()
