@@ -613,10 +613,16 @@ async def process_workout_time_text(message: Message, state: FSMContext):
         )
         return
     today = get_current_day()
-    await update_log(message.from_user.id, today, workout_time=time_str)
-    await message.answer(f"Записала: тренировка в {time_str} ⏰")
+    data = await state.get_data()
     
-    # НОВОЕ: спрашиваем план на тренировку
+    # СОХРАНЯЕМ ВСЕ ДАННЫЕ
+    await update_log(message.from_user.id, today,
+                     sleep_quality=data.get("sleep_quality"),
+                     sport_planned=data.get("sport_planned"),
+                     sweet_planned=data.get("sweet_planned"),
+                     workout_time=time_str)
+    
+    await message.answer(f"Записала: тренировка в {time_str} ⏰")
     await message.answer(
         "Какой план на тренировку? (упражнения, подходы, цели)",
         reply_markup=workout_plan_kb()
@@ -636,6 +642,16 @@ async def process_workout_plan_text(call: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data == "plan_skip", StateFilter(MorningStates.workout_time))
 async def skip_workout_time(call: CallbackQuery, state: FSMContext):
+    today = get_current_day()
+    data = await state.get_data()
+    
+    # СОХРАНЯЕМ ВСЕ ДАННЫЕ
+    await update_log(call.from_user.id, today,
+                     sleep_quality=data.get("sleep_quality"),
+                     sport_planned=data.get("sport_planned"),
+                     sweet_planned=data.get("sweet_planned"),
+                     workout_time=None)
+    
     await call.message.edit_text(
         "Во сколько у тебя тренировка/физра?\n<i>Пропущено</i>",
         parse_mode="HTML", reply_markup=None
@@ -700,26 +716,6 @@ async def skip_workout_plan(call: CallbackQuery, state: FSMContext):
     )
     await state.set_state(MorningStates.daily_plan)
     await call.answer()
-
-@router.message(StateFilter(MorningStates.daily_plan_text))
-async def save_daily_plan(message: Message, state: FSMContext):
-    today = get_current_day()
-    data = await state.get_data()
-    
-    # СОХРАНЯЕМ ВСЕ ДАННЫЕ
-    await update_log(message.from_user.id, today,
-                     sleep_quality=data.get("sleep_quality"),
-                     sport_planned=data.get("sport_planned"),
-                     sweet_planned=data.get("sweet_planned"),
-                     workout_time=data.get("workout_time"),
-                     workout_plan=data.get("workout_plan"),
-                     daily_plan=message.text)
-    
-    await state.clear()
-    await message.answer(
-        f"План записан ✅\n\n{get_day_wish()}\n\nЕсли хочешь что-то изменить — нажми кнопку ниже.",
-        reply_markup=finish_with_review_kb()
-    )
 
 @router.callback_query(F.data == "plan_skip", StateFilter(MorningStates.daily_plan))
 async def skip_daily_plan(call: CallbackQuery, state: FSMContext):
@@ -1288,3 +1284,13 @@ async def cmd_load_protocol(message: Message):
         "🌙 Вечер — 21:00\n\n"
         "Чтобы посмотреть или изменить расписание — напиши /schedule"
     )
+
+@router.callback_query(F.data == "morning_start")
+async def start_morning_survey(call: CallbackQuery, state: FSMContext):
+    """Запуск утреннего опросника по кнопке"""
+    await call.message.edit_text(
+        "Доброе утро! Как спалось?",
+        reply_markup=sleep_kb()
+    )
+    await state.set_state(MorningStates.sleep_quality)
+    await call.answer()

@@ -6,12 +6,17 @@ from database import get_today_log, get_current_day, parse_workout_time
 
 scheduler = AsyncIOScheduler(timezone="Europe/Moscow")
 
+# === КЛАВИАТУРЫ ===
+
+def morning_start_kb():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Начать утренний опрос ☀️", callback_data="morning_start")]
+    ])
 
 def evening_start_kb():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Начать вечерний опрос 🌙", callback_data="evening_start")]
     ])
-
 
 def afternoon_kb():
     return InlineKeyboardMarkup(inline_keyboard=[
@@ -21,22 +26,26 @@ def afternoon_kb():
         [InlineKeyboardButton(text="✏️ Изменить утренние ответы", callback_data="review_start")]
     ])
 
-
 def nag_kb():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Отметить сейчас 📝", callback_data="evening_start")]
     ])
 
+# === ДЖОБЫ ===
 
 async def morning_check(bot: Bot, user_id: int):
-    await bot.send_message(user_id, "Доброе утро! Начинаем день?")
-
+    """9:00 — запускает полноценный утренний опрос"""
+    await bot.send_message(
+        user_id,
+        "Доброе утро! Как спалось? Давай заполним дневник ☀️",
+        reply_markup=morning_start_kb()
+    )
 
 async def afternoon_check(bot: Bot, user_id: int):
+    """14:00 — дневное напоминание"""
     log = await get_today_log(user_id)
     text = "Не забудь пообедать нормальной едой! 🥗\n\n"
     
-    # НОВОЕ: напоминаем план на день
     if log and log.get('daily_plan'):
         text += f"📝 Твой план на день:\n{log['daily_plan']}\n\n"
     
@@ -48,14 +57,15 @@ async def afternoon_check(bot: Bot, user_id: int):
     await bot.send_message(user_id, text, reply_markup=afternoon_kb())
 
 async def evening_check(bot: Bot, user_id: int):
+    """22:00 — вечерний опрос"""
     await bot.send_message(
         user_id,
         "Как прошел день? Давай отметим сладкое и спорт 🌙",
         reply_markup=evening_start_kb()
     )
 
-
 async def nag_user(bot: Bot, user_id: int):
+    """23:30 — напоминание, если не ответила"""
     log = await get_today_log(user_id)
     if not log or log.get('sweet_bool') is None:
         await bot.send_message(
@@ -64,10 +74,9 @@ async def nag_user(bot: Bot, user_id: int):
             reply_markup=nag_kb()
         )
 
-
 async def weekly_report(bot: Bot, user_id: int):
+    """Вторник 9:00 — недельная сводка"""
     await bot.send_message(user_id, "Сегодня вторник — время недельной сводки! Напиши /stats 📊")
-
 
 async def workout_reminder(bot: Bot, user_id: int):
     """Напоминание за час до тренировки. Запускается каждые 15 минут."""
@@ -84,12 +93,12 @@ async def workout_reminder(bot: Bot, user_id: int):
 
     if timedelta(minutes=55) <= time_until_workout <= timedelta(minutes=65):
         daily_plan = log.get('daily_plan', '')
-        workout_plan = log.get('workout_plan', '')  # НОВОЕ
+        workout_plan = log.get('workout_plan', '')
         sport_planned = log.get('sport_planned', '')
         
         text = f"⏰ Через час у тебя тренировка ({log['workout_time']})!\n\n"
         
-        if workout_plan:  # НОВОЕ
+        if workout_plan:
             text += f"🏋️ План на тренировку:\n{workout_plan}\n\n"
         
         if daily_plan:
@@ -102,17 +111,8 @@ async def workout_reminder(bot: Bot, user_id: int):
         
         await bot.send_message(user_id, text)
 
+# === РАСПИСАНИЕ (ТАБЛЕТКИ/ПЛАН) ===
 
-def setup_scheduler(bot: Bot, user_id: int):
-    scheduler.add_job(morning_check, 'cron', hour=9, minute=0, args=[bot, user_id])
-    scheduler.add_job(afternoon_check, 'cron', hour=14, minute=0, args=[bot, user_id])
-    scheduler.add_job(evening_check, 'cron', hour=22, minute=0, args=[bot, user_id])
-    scheduler.add_job(nag_user, 'cron', hour=23, minute=30, args=[bot, user_id])
-    scheduler.add_job(weekly_report, 'cron', day_of_week='tue', hour=9, minute=0, args=[bot, user_id])
-    scheduler.add_job(workout_reminder, 'interval', minutes=15, args=[bot, user_id])
-    scheduler.start()
-
-# Маппинг для получения текущего дня недели на русском для БД
 DB_DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 
 async def schedule_morning_reminder(bot: Bot, user_id: int):
@@ -126,17 +126,14 @@ async def schedule_evening_reminder(bot: Bot, user_id: int):
 
 async def send_schedule_message(bot: Bot, user_id: int, time_of_day: str, header: str):
     from database import get_user_schedule
-    import datetime
     
     schedule = await get_user_schedule(user_id)
-    today_en = DB_DAYS[datetime.datetime.now().weekday()]
+    today_en = DB_DAYS[datetime.now().weekday()]
     
     day_schedule = schedule.get(today_en, "")
     if not day_schedule:
-        return # Если на этот день ничего не настроено, молчим
+        return
         
-    # Парсим текст, чтобы вытащить нужную часть (Утро/День/Вечер)
-    # Мы сохраняли их с маркерами "☀️ Утро:", "🌤 День:", "🌙 Вечер:"
     parts = day_schedule.split("🌙 Вечер:")
     evening_part = parts[1].strip() if len(parts) > 1 else ""
     
@@ -155,13 +152,21 @@ async def send_schedule_message(bot: Bot, user_id: int, time_of_day: str, header
     if target_text and target_text != "Не требуется":
         await bot.send_message(user_id, f"{header}\n\n{target_text}")
 
-# В функцию setup_scheduler добавь эти строки:
+# === ОДНА ФУНКЦИЯ НАСТРОЙКИ (ОБЪЕДИНЁННАЯ) ===
+
 def setup_scheduler(bot: Bot, user_id: int):
-    # ... твои существующие джобы ...
+    # Основные опросы
+    scheduler.add_job(morning_check, 'cron', hour=9, minute=0, args=[bot, user_id])
+    scheduler.add_job(afternoon_check, 'cron', hour=14, minute=0, args=[bot, user_id])
+    scheduler.add_job(evening_check, 'cron', hour=22, minute=0, args=[bot, user_id])
+    scheduler.add_job(nag_user, 'cron', hour=23, minute=30, args=[bot, user_id])
+    scheduler.add_job(weekly_report, 'cron', day_of_week='tue', hour=9, minute=0, args=[bot, user_id])
+    scheduler.add_job(workout_reminder, 'interval', minutes=15, args=[bot, user_id])
     
-    # Новые джобы для расписания (время можно поменять под себя)
+    # Напоминания из расписания (таблетки/план)
     scheduler.add_job(schedule_morning_reminder, 'cron', hour=8, minute=0, args=[bot, user_id])
     scheduler.add_job(schedule_day_reminder, 'cron', hour=13, minute=0, args=[bot, user_id])
     scheduler.add_job(schedule_evening_reminder, 'cron', hour=21, minute=0, args=[bot, user_id])
     
     scheduler.start()
+    print("✅ Scheduler запущен со всеми джобами")
